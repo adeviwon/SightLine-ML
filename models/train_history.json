@@ -2,23 +2,22 @@
   "history": [
     {
       "epoch": 1,
-      "train_mse": 0.05488885932912429,
-      "val_psnr": 14.815,
-      "lr": 0.0009045084971874737
+      "train_mse": 0.020841,
+      "val_ink_psnr": 8.79,
+      "val_full_psnr": 11.235,
+      "lr": 0.0005
     },
     {
       "epoch": 2,
-      "train_mse": 0.03142028326789538,
-      "val_psnr": 14.574,
-      "lr": 0.0009045084971874737
-    },
-    {
-      "epoch": 3,
-      "train_mse": 0.03142028326789538,
-      "val_psnr": 14.574,
-      "lr": 0.0009045084971874737
+      "train_mse": 0.007439,
+      "val_ink_psnr": 9.145,
+      "val_full_psnr": 12.009,
+      "lr": 0.0
     }
   ],
-  "best_val_psnr": 14.815,
-  "epochs_done": 3
+  "best_val_psnr": 9.145,
+  "epochs": 2,
+  "train_patches": 230,
+  "val_patches": 58,
+  "seconds": 179.1
 }

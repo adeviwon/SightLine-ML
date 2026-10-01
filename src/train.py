@@ -26,8 +26,16 @@ from synthdata import make_dataset
 from model import DnCNNLite, PatchDataset
 
 
-def psnr(pred, target, eps=1e-8):
-    mse = ((pred - target) ** 2).mean()
+def psnr(pred, target, eps=1e-8, ink_only=False):
+    if ink_only:
+        # PSNR measured on ink (text) pixels only — the metric that tracks OCR quality.
+        # Text pixels: target luma < 0.5 (dark strokes on white docs).
+        m = target < 0.5
+        if m.sum() < 8:
+            return psnr(pred, target, eps, ink_only=False)
+        mse = ((pred[m] - target[m]) ** 2).mean()
+    else:
+        mse = ((pred - target) ** 2).mean()
     if mse < eps:
         return 40.0
     return float(10.0 * math.log10(1.0 / mse))
@@ -35,12 +43,14 @@ def psnr(pred, target, eps=1e-8):
 
 def evaluate(model, loader):
     model.eval()
-    tot = 0.0
+    tot_full, tot_ink = 0.0, 0.0
     with torch.no_grad():
         for deg, clean in loader:
             out = model(deg)
-            tot += psnr(out.numpy(), clean.numpy())
-    return tot / max(1, len(loader))
+            tot_full += psnr(out.numpy(), clean.numpy())
+            tot_ink += psnr(out.numpy(), clean.numpy(), ink_only=True)
+    n = max(1, len(loader))
+    return tot_ink / n, tot_full / n  # (headline=ink PSNR, secondary=full PSNR)
 
 
 def main():
@@ -88,7 +98,12 @@ def main():
     model = DnCNNLite()
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
-    loss_fn = nn.MSELoss()
+    # Masked MSE: weight loss toward ink (text) regions — the white background
+    # dominates plain MSE on document patches (verified: train_mse identical across
+    # epochs, PSNR pinned ~14.6 dB — model was predicting ~input). The mask is the
+    # inverted clean-patch luma: 1.0 where text, ~0.04 floor elsewhere (keeps
+    # background consistent too, just 25x down-weighted).
+    BG_FLOOR = 0.04
 
     history = []
     best_psnr = -1.0
@@ -113,22 +128,26 @@ def main():
         for deg, clean in train_ld:
             opt.zero_grad()
             out = model(deg)
-            loss = loss_fn(out, clean)
+            with torch.no_grad():
+                ink = (1.0 - clean).pow(2)  # clean text is dark -> (1-clean)^2 peaks on strokes
+                mask = BG_FLOOR + (1.0 - BG_FLOOR) * ink
+            loss = (mask * (out - clean).pow(2)).mean()
             loss.backward()
             opt.step()
             ep_loss += loss.item() * deg.size(0)
         sched.step()
 
-        val_psnr = evaluate(model, val_ld)
+        ink_psnr, full_psnr = evaluate(model, val_ld)
         rec = {
             "epoch": epoch + 1,
-            "train_mse": ep_loss / len(train_ds),
-            "val_psnr": round(val_psnr, 3),
-            "lr": sched.get_last_lr()[0],
+            "train_mse": round(ep_loss / len(train_ds), 6),
+            "val_ink_psnr": round(ink_psnr, 3),
+            "val_full_psnr": round(full_psnr, 3),
+            "lr": round(sched.get_last_lr()[0], 8),
         }
         history.append(rec)
-        if val_psnr > best_psnr:
-            best_psnr = val_psnr
+        if ink_psnr > best_psnr:
+            best_psnr = ink_psnr
             best_state = copy.deepcopy(model.state_dict())
         if best_state is not None:
             Path("models").mkdir(exist_ok=True)
@@ -140,7 +159,7 @@ def main():
             with open("models/train_history.json", "w") as f:
                 json.dump({"history": history, "best_val_psnr": round(best_psnr, 3),
                            "epochs_done": epoch + 1}, f, indent=2)
-        print(f"epoch {epoch+1:3d}/{args.epochs}  mse {rec['train_mse']:.5f}  val_psnr {val_psnr:.2f} dB", flush=True)
+        print(f"epoch {epoch+1:3d}/{args.epochs}  mse {rec['train_mse']:.5f}  ink_psnr {ink_psnr:.2f} dB  full_psnr {full_psnr:.2f} dB", flush=True)
 
     Path("models").mkdir(exist_ok=True)
     torch.save({"state_dict": best_state, "val_psnr": best_psnr,
