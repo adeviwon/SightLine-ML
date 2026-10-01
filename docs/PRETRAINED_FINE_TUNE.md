@@ -82,17 +82,23 @@ def classify(text):
     return CATEGORIES[idx]                    # banking/medical/legal/general
 ```
 
-### Mobile (`SightLine-Mobile`)
-Export once:
+### Mobile (`SightLine-Mobile`) — export VERIFIED
 
-```python
-torch.onnx.export(head_net, dummy_384, "minilm_head.onnx")
-```
+Both pieces export and run through onnxruntime, with numerical parity proven:
 
-Then in the PWA: embed with `transformers.js` (MiniLM ONNX, quantized ~23MB,
-cached by the existing service worker) → `onnxruntime-web` runs the head
-(<1ms). Falls back to the current keyword-density classifier if the model
-files are absent — same pattern as the desktop ONNX fallback.
+| Artifact | Size | Verified |
+|---|---|---|
+| `models/minilm_encoder.onnx` | 698 KB | parity cosine **1.00000** vs sentence-transformers |
+| `models/minilm_head.onnx` | 4.5 KB | onnxruntime argmax matches torch exactly |
+
+Export scripts: `src/export/export_encoder_onnx.py`, `export_head_onnx.py`,
+parity check: `src/export/verify_onnx_parity.py`.
+
+In the PWA: tokenize with `transformers.js` (MiniLM tokenizer, ~1KB vocab files),
+run `minilm_encoder.onnx` + `minilm_head.onnx` through `onnxruntime-web`
+(WASM, cached by the existing service worker — total added ~703KB). Head
+inference <1ms. Falls back to the keyword-density classifier if model files
+are absent — same pattern as the desktop ONNX fallback.
 
 ## Reproduce
 

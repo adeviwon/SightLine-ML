@@ -27,8 +27,29 @@
       "val_ink_psnr": 6.059,
       "val_full_psnr": 9.074,
       "lr": 0.0005
+    },
+    {
+      "epoch": 3,
+      "train_mse": 0.007826,
+      "val_ink_psnr": 10.064,
+      "val_full_psnr": 9.422,
+      "lr": 0.00085355
+    },
+    {
+      "epoch": 4,
+      "train_mse": 0.006193,
+      "val_ink_psnr": 9.234,
+      "val_full_psnr": 10.048,
+      "lr": 0.0005
+    },
+    {
+      "epoch": 1,
+      "train_mse": 0.007826,
+      "val_ink_psnr": 10.064,
+      "val_full_psnr": 9.422,
+      "lr": 0.00093301
     }
   ],
   "best_val_psnr": 11.039,
-  "epochs_done": 2
+  "epochs_done": 1
 }
