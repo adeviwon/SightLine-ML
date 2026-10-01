@@ -91,3 +91,11 @@ python3 src/evaluate.py --n-per-condition 12
   `onnxruntime-web` stage or the desktop pipeline's ONNX path
 - Falls back cleanly: the classical stack remains the default when the
   model file is absent (mirrors the repo's existing fallback pattern)
+
+## Appendix: Baseline context
+
+The existing production classifier (TF-IDF + LogisticRegression, 50-sample corpus)
+measures **87.5% val accuracy / 0.867 macro F1** on a stratified 85/15 split
+(seed 123, n_test=8 — high variance at this corpus size). The MiniLM fine-tune
+(`docs/PRETRAINED_FINE_TUNE.md`) targets >90% on a 4-5x larger corpus. See
+`docs/tfidf_baseline.json` for the raw numbers.

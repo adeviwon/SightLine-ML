@@ -1,0 +1,9 @@
+{
+  "model": "TF-IDF (500 features, 1-2 ngrams) + LogisticRegression",
+  "corpus": 50,
+  "val_accuracy": 0.875,
+  "macro_f1": 0.867,
+  "test_n": 8,
+  "seed": 123,
+  "note": "Tiny corpus \u2014 high variance. The MiniLM fine-tune uses 240+ samples; comparison is directional, not absolute."
+}
