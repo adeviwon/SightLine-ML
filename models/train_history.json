@@ -13,11 +13,22 @@
       "val_ink_psnr": 9.145,
       "val_full_psnr": 12.009,
       "lr": 0.0
+    },
+    {
+      "epoch": 1,
+      "train_mse": 0.009209,
+      "val_ink_psnr": 11.039,
+      "val_full_psnr": 8.594,
+      "lr": 0.00085355
+    },
+    {
+      "epoch": 2,
+      "train_mse": 0.006316,
+      "val_ink_psnr": 6.059,
+      "val_full_psnr": 9.074,
+      "lr": 0.0005
     }
   ],
-  "best_val_psnr": 9.145,
-  "epochs": 2,
-  "train_patches": 230,
-  "val_patches": 58,
-  "seconds": 179.1
+  "best_val_psnr": 11.039,
+  "epochs_done": 2
 }
