@@ -56,10 +56,32 @@ def main():
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    data = make_dataset(n_per_condition=args.n_per_condition, seed=args.seed)
-    n_train = int(len(data) * 0.8)
-    train_ds = PatchDataset(data[:n_train])
-    val_ds = PatchDataset(data[n_train:])
+    # Dataset cache: regenerating 200 renders costs 60-90s per chunk; with
+    # chunked resume training this dominates. Cache patches to .npy once.
+    import hashlib
+    cache_key = hashlib.md5(f"v1-{args.n_per_condition}-{args.seed}".encode()).hexdigest()[:10]
+    cache_dir = Path("data")
+    cache_dir.mkdir(exist_ok=True)
+    cfile_x = cache_dir / f"X_{cache_key}.npy"
+    cfile_y = cache_dir / f"Y_{cache_key}.npy"
+    if cfile_x.exists() and cfile_y.exists():
+        X = np.load(cfile_x)
+        Y = np.load(cfile_y)
+        print(f"dataset cache hit: {X.shape[0]} patches from {cfile_x.name}", flush=True)
+    else:
+        data = make_dataset(n_per_condition=args.n_per_condition, seed=args.seed)
+        pds_tmp = PatchDataset(data)
+        X = np.stack([p[0].numpy()[0] for p in [(pds_tmp[i][0], pds_tmp[i][1]) for i in range(len(pds_tmp))]])
+        Y = np.stack([p[1].numpy()[0] for p in [(pds_tmp[i][0], pds_tmp[i][1]) for i in range(len(pds_tmp))]])
+        np.save(cfile_x, X)
+        np.save(cfile_y, Y)
+        print(f"dataset built+cached: {X.shape[0]} patches -> {cfile_x.name}", flush=True)
+
+    n_train = int(X.shape[0] * 0.8)
+    train_ds = torch.utils.data.TensorDataset(
+        torch.from_numpy(X[:n_train]).unsqueeze(1), torch.from_numpy(Y[:n_train]).unsqueeze(1))
+    val_ds = torch.utils.data.TensorDataset(
+        torch.from_numpy(X[n_train:]).unsqueeze(1), torch.from_numpy(Y[n_train:]).unsqueeze(1))
     train_ld = torch.utils.data.DataLoader(train_ds, batch_size=args.batch, shuffle=True)
     val_ld = torch.utils.data.DataLoader(val_ds, batch_size=args.batch)
 
@@ -108,7 +130,7 @@ def main():
         if val_psnr > best_psnr:
             best_psnr = val_psnr
             best_state = copy.deepcopy(model.state_dict())
-        if (epoch + 1) % 5 == 0 and best_state is not None:
+        if best_state is not None:
             Path("models").mkdir(exist_ok=True)
             torch.save({"state_dict": best_state, "val_psnr": best_psnr,
                         "arch": "DnCNNLite-8-64", "seed": args.seed,
